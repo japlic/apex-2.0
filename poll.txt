@@ -1,0 +1,182 @@
+@commands.slash_command(description="This code is run every time any subcommand is invoked")
+async def poll(self, ctx: disnake.ApplicationCommandInteraction):
+     pass
+
+@poll.sub_command()
+async def start(self, ctx: disnake.AppCommandInteraction, question: str, ):
+    poll_message = f"**{question}**\n\nYes - Votes: 0\nNo - Votes: 0"
+
+    embed = disnake.Embed(title="Poll", description=poll_message, color=0x00ff00)
+    embed.set_footer(text=f"Poll started by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
+
+    try:
+        poll_msg = await ctx.send(embed=embed, view=PollView(question))
+        active_polls[ctx.channel.id] = poll_msg
+
+    except disnake.HTTPException as e:
+        await ctx.send("An error occurred while creating the poll. Please try again")
+        active_polls = {}
+
+class PollView(ui.View):
+    def __init__(self, poll_question: str):
+        super().__init__()
+        self.poll_question = poll_question
+        self.vote_count = {"Yes": 0, "No": 0}
+        self.voted_users = set()
+
+    @ui.button(label="Yes", style=disnake.ButtonStyle.primary, custom_id="choice1")
+    async def choice1_button(self, button: ui.Button, interaction: disnake.MessageInteraction):
+        if interaction.user.id in self.voted_users:
+            await interaction.response.send_message("You have already voted and cannot vote again.", ephemeral=True)
+        else:
+            self.vote_count["Yes"] += 1
+            self.voted_users.add(interaction.user.id)
+            await interaction.response.send_message("You voted for 'Yes'.", ephemeral=True)
+            await self.update_poll_message(interaction)
+
+    @ui.button(label="No", style=disnake.ButtonStyle.primary, custom_id="choice2")
+    async def choice2_button(self, button: ui.Button, interaction: disnake.MessageInteraction):
+        if interaction.user.id in self.voted_users:
+            await interaction.response.send_message("You have already voted and cannot vote again.", ephemeral=True)
+        else:
+            self.vote_count["No"] += 1
+            self.voted_users.add(interaction.user.id)
+            await interaction.response.send_message("You voted for 'No'.", ephemeral=True)
+            await self.update_poll_message(interaction)
+
+    async def update_poll_message(self, interaction: disnake.MessageInteraction):
+        poll_message = f"**{self.poll_question}**\n\n"
+        poll_message += f"Yes - Votes: {self.vote_count['Yes']}\n"
+        poll_message += f"No - Votes: {self.vote_count['No']}"
+
+        embed = disnake.Embed(title="Poll", description=poll_message, color=0x00ff00)
+        embed.set_footer(text=f"Poll started by {interaction.user.display_name}",
+                         icon_url=interaction.user.display_avatar.url)
+
+        await interaction.message.edit(embed=embed)
+
+    async def interaction_check(self, interaction: disnake.Interaction) -> bool:
+        return interaction.user.id != interaction.message.author.id
+
+
+
+            @commands.slash_command(name="play", description="Plays a song from a given query.")
+    async def play(self, inter : disnake.AppCommandInteraction, query: str):
+        player = self.bot.lavalink.player_manager.create(inter.guild.id)
+        guild.voice_client.disconnect
+        query = query.strip('<>')
+        if not url_rx.match(query):
+            query = f'ytsearch:{query}'
+        results = await player.node.get_tracks(query)
+        embed = disnake.Embed(color=disnake.Color.blurple())
+        if results.load_type == LoadType.EMPTY:
+            return await inter.response.send_message("I couldn'\t find any tracks for that query.")
+        elif results.load_type == LoadType.PLAYLIST:
+            tracks = results.tracks
+            for track in tracks:
+                player.add(track=track, requester=inter.author.id)
+            embed.title = 'Playlist Enqueued!'
+            embed.description = f'{results.playlist_info.name} - {len(tracks)} tracks'
+        else:
+            track = results.tracks[0]
+            embed.title = 'Track Enqueued'
+            embed.description = f'[{track.title}]({track.uri})'
+            player.add(track=track, requester=inter.author.id)
+        await inter.response.send_message(embed=embed)
+        if not player.is_playing:
+            await player.play()
+
+    @commands.slash_command(name="lowpass", description="Sets the strength of the low pass filter.")
+    async def lowpass(self, inter, strength: float):
+        player = self.bot.lavalink.player_manager.get(inter.guild.id)
+        strength = max(0.0, strength)
+        strength = min(100, strength)
+        embed = disnake.Embed(color=disnake.Color.blurple(), title='Low Pass Filter')
+        if strength == 0.0:
+            await player.remove_filter('lowpass')
+            embed.description = 'Disabled **Low Pass Filter**'
+            return await inter.response.send_message(embed=embed)
+        low_pass = LowPass()
+        low_pass.update(smoothing=strength)
+        await player.set_filter(low_pass)
+        embed.description = f'Set **Low Pass Filter** strength to {strength}.'
+        await inter.response.send_message(embed=embed)
+
+    @commands.slash_command(name="disconnect", description="Disconnects the player from the voice channel and clears its queue.")
+    async def disconnect(self, inter):
+        player = self.bot.lavalink.player_manager.get(inter.guild.id)
+        player.queue.clear()
+        await player.stop()
+        await inter.guild.voice_client.disconnect(force=True)
+        await inter.response.send_message('✳ | Disconnected.')
+
+
+
+
+
+
+
+sync def create_player(ctx: commands.Context):
+        """
+        A check that is invoked before any commands marked with `@commands.check(create_player)` can run.
+
+        This function will try to create a player for the guild associated with this Context, or raise
+        an error which will be relayed to the user if one cannot be created.
+        """
+        if ctx.guild is None:
+            raise commands.NoPrivateMessage()
+
+        player = ctx.bot.lavalink.player_manager.create(ctx.guild.id)
+
+        should_connect = ctx.command.name in ('play',)
+
+        voice_client = ctx.voice_client
+
+        if not ctx.author.voice or not ctx.author.voice.channel:
+            if voice_client is not None:
+                raise commands.CommandInvokeError('You need to join my voice channel first.')
+            raise commands.CommandInvokeError('Join a voicechannel first.')
+
+        voice_channel = ctx.author.voice.channel
+
+        if voice_client is None:
+            if not should_connect:
+                raise commands.CommandInvokeError("I'm not playing music.")
+
+            permissions = voice_channel.permissions_for(ctx.me)
+
+            if not permissions.connect or not permissions.speak:
+                raise commands.CommandInvokeError('I need the `CONNECT` and `SPEAK` permissions.')
+
+            if voice_channel.user_limit > 0:
+                if len(voice_channel.members) >= voice_channel.user_limit and not ctx.me.guild_permissions.move_members:
+                    raise commands.CommandInvokeError('Your voice channel is full!')
+
+            player.store('channel', ctx.channel.id)
+            await ctx.author.voice.channel.connect(cls=LavalinkVoiceClient)
+        elif voice_client.channel.id != voice_channel.id:
+            raise commands.CommandInvokeError('You need to be in my voicechannel.')
+
+        return True
+
+    @lavalink.listener(TrackStartEvent)
+    async def on_track_start(self, event: TrackStartEvent):
+        guild_id = event.player.guild_id
+        channel_id = event.player.fetch('channel')
+        guild = self.bot.get_guild(guild_id)
+
+        if not guild:
+            return await self.lavalink.player_manager.destroy(guild_id)
+
+        channel = guild.get_channel(channel_id)
+
+        if channel:
+            await channel.send('Now playing: {} by {}'.format(event.track.title, event.track.author))
+
+    @lavalink.listener(QueueEndEvent)
+    async def on_queue_end(self, event: QueueEndEvent):
+        guild_id = event.player.guild_id
+        guild = self.bot.get_guild(guild_id)
+
+        if guild is not None:
+            await guild.voice_client.disconnect(force=True)

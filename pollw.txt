@@ -1,0 +1,4 @@
+MTIzMTcwMzMwMDMzMjcxNjEyNA.GQjFNm.TJlyPj4TW0uEsX1A8gGYEEHE8SAZJftmkjrSN8
+
+
+            "waifu-diffusion": "hakurei/waifu-diffusion",
