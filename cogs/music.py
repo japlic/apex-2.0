@@ -261,6 +261,26 @@ class Music(commands.Cog):
                 )
                 await inter.response.send_message(embed=queue_embed)
 
+    @music.sub_command(description="view queue")
+    async def queue(self, ctx, page: int = 1):
+        player = self.bot.lavalink.player_manager.get(ctx.guild.id)
+        if not player.queue:
+            return await ctx.send("The queue is currently empty.")
+
+        items_per_page = 10
+        pages = (len(player.queue) - 1) // items_per_page + 1
+
+        if page < 1 or page > pages:
+            return await ctx.send(f"Invalid page number. Please choose between 1 and {pages}.")
+
+        start = (page - 1) * items_per_page
+        end = start + items_per_page
+
+        upcoming = player.queue[start:end]
+        queue_message = '\n'.join([f'**{index + start + 1}.** {track.title}' for index, track in enumerate(upcoming)])
+
+        embed = disnake.Embed(title=f"Upcoming Songs (Page {page}/{pages})", description=queue_message, color=disnake.Color.blue())
+        await ctx.send(embed=embed)
 
 def setup(bot):
   bot.add_cog(Music(bot))
