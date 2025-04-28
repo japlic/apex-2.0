@@ -72,4 +72,4 @@ async def reload(ctx):
 # vc_lock_channel = await guild.fetch_channel(1114859296908382208)
 # await vc_lock_channel.edit(name=f"In {len(bot.guilds)} guilds")
 
-bot.run("MTEwODUxMDY1NzQ3ODkzNDYwOA.GYoKkI.MGeFl6wiIy0l_lNBdkHagN4mJl1XNFK8r6APkc")
+bot.run("bot token here")
